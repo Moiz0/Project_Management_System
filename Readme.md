@@ -59,9 +59,7 @@ A comprehensive **role-based project management system** with task tracking, res
 - Tailwind CSS for styling
 - Context API for state management
 - React Hooks for component logic
-
----
-
+ 
 ---
 
 ## 🔧 Installation & Setup
@@ -78,10 +76,11 @@ npm install
 
 ```
 - Create .env file
+```bash
 MONGODB_URI=mongodb://127.0.0.1:27017/project-management
 JWT_SECRET=your-super-secret-jwt-key
 PORT=5000
-
+```
 ### Frontend Setup
 cd frontend
 npm install
@@ -218,4 +217,5 @@ Frontend runs on: http://localhost:3000
 - Team member performance  
 - Completion rates  
 - Project progress tracking 
+
 

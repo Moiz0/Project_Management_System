@@ -16,7 +16,7 @@ export default function ProjectsPage() {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    moderator: "",
+    moderator: "", 
     teamMembers: [] as string[],
     status: "active" as "active" | "completed",
   });
@@ -40,7 +40,7 @@ export default function ProjectsPage() {
 
     const data = await api.users.getAll(token);
     if (!("error" in data)) {
-      setUsers(data);
+      setUsers(data); 
     }
   };
 
@@ -56,20 +56,24 @@ export default function ProjectsPage() {
     setError(null);
     const token = getToken();
     if (!token) return;
+    const payload = {
+        ...formData,
+        moderator: user?.role === "moderator" && !editProject ? user._id : formData.moderator
+    }
 
     try {
       if (editProject) {
         const result = await api.projects.update(
           token,
           editProject._id,
-          formData
+          formData 
         );
         if ("error" in result) {
           setError(result.error);
           return;
         }
       } else {
-        const result = await api.projects.create(token, formData);
+        const result = await api.projects.create(token, payload);
         if ("error" in result) {
           setError(result.error);
           return;
@@ -104,6 +108,9 @@ export default function ProjectsPage() {
       ),
       status: project.status,
     });
+    if(user?.role === "admin" && users.length === 0) {
+        fetchUsers();
+    }
     setShowModal(true);
     setError(null);
   };
@@ -178,20 +185,24 @@ export default function ProjectsPage() {
                 <strong>Team:</strong> {project.teamMembers?.length || 0}{" "}
                 members
               </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleEdit(project)}
-                  className="flex-1 bg-blue-600 text-white py-1 rounded hover:bg-blue-700"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => handleDelete(project._id)}
-                  className="flex-1 bg-red-600 text-white py-1 rounded hover:bg-red-700"
-                >
-                  Delete
-                </button>
-              </div>
+              {(user?.role === "admin" || 
+                (user?.role === "moderator" && (project.moderator as User)?._id === user._id)
+              ) && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleEdit(project)}
+                    className="flex-1 bg-blue-600 text-white py-1 rounded hover:bg-blue-700"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDelete(project._id)}
+                    className="flex-1 bg-red-600 text-white py-1 rounded hover:bg-red-700"
+                  >
+                    Delete
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>

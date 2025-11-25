@@ -54,14 +54,23 @@ export default function TasksPage() {
 
     const data = await api.users.getAll(token);
     if (!("error" in data)) {
-      setUsers(data.filter((u) => u.role === "user"));
+      const assignableUsers = data.filter(
+        (u) => u.role === "user" || u.role === "moderator"
+      );
+      if (user) {
+        setUsers(assignableUsers.filter((u) => u._id !== user._id));
+      } else {
+        setUsers(assignableUsers);
+      }
+    } else {
+      console.error("Failed to fetch users for assignment:", data.error);
     }
   };
 
   useEffect(() => {
     fetchTasks();
     fetchProjects();
-    if (user?.role !== "user") {
+    if (user?.role === "admin" || user?.role === "moderator") {
       fetchUsers();
     }
   }, [user]);
@@ -99,6 +108,29 @@ export default function TasksPage() {
     } catch (err) {
       setError("Failed to save task");
     }
+  };
+
+  const handleEdit = (task: Task) => {
+    setEditTask(task);
+    setFormData({
+      title: task.title,
+      description: task.description,
+      project:
+        typeof task.project === "string" ? task.project : task.project._id,
+      assignedTo:
+        typeof task.assignedTo === "string"
+          ? task.assignedTo
+          : task.assignedTo._id,
+      status: task.status,
+    });
+    if (
+      (user?.role === "admin" || user?.role === "moderator") &&
+      users.length === 0
+    )
+      fetchUsers();
+    if (projects.length === 0) fetchProjects();
+    setShowModal(true);
+    setError(null);
   };
 
   const handleStatusChange = async (taskId: string, status: Task["status"]) => {
@@ -192,6 +224,8 @@ export default function TasksPage() {
                 });
                 setShowModal(true);
                 setError(null);
+
+                if (users.length === 0) fetchUsers();
               }}
               className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
             >
@@ -199,96 +233,108 @@ export default function TasksPage() {
             </button>
           )}
         </div>
-
         {error && (
           <div className="bg-red-100 text-red-700 p-4 rounded mb-4">
             {error}
           </div>
         )}
-
         <div className="space-y-4">
-          {tasks.map((task) => (
-            <div key={task._id} className="bg-white rounded shadow p-6">
-              <div className="flex justify-between items-start mb-2">
-                <div className="flex-1">
-                  <h3 className="text-xl font-bold">{task.title}</h3>
-                  <p className="text-gray-600 mt-1">{task.description}</p>
-                </div>
-                <span
-                  className={`px-3 py-1 rounded text-sm whitespace-nowrap ml-4 ${getStatusColor(
-                    task.status
-                  )}`}
-                >
-                  {task.status}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 mt-4 text-sm">
-                <div>
-                  <strong>Project:</strong> {getProjectName(task.project)}
-                </div>
-                <div>
-                  <strong>Assigned To:</strong> {getUserName(task.assignedTo)}
-                </div>
-              </div>
-
-              {task.resolutionNote && (
-                <div className="mt-4 p-3 bg-gray-50 rounded">
-                  <strong className="text-sm">Resolution Note:</strong>
-                  <p className="text-sm mt-1">{task.resolutionNote}</p>
-                </div>
-              )}
-
-              <div className="flex gap-2 mt-4">
-                {user?.role === "user" && task.status === "open" && (
-                  <button
-                    onClick={() => handleStatusChange(task._id, "in-progress")}
-                    className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
+          {tasks
+            .filter(
+              (task) =>
+                user?.role !== "user" ||
+                (task.assignedTo as User)?._id === user?._id
+            )
+            .map((task) => (
+              <div key={task._id} className="bg-white rounded shadow p-6">
+                <div className="flex justify-between items-start mb-2">
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold">{task.title}</h3>
+                    <p className="text-gray-600 mt-1">{task.description}</p>
+                  </div>
+                  <span
+                    className={`px-3 py-1 rounded text-sm whitespace-nowrap ml-4 ${getStatusColor(
+                      task.status
+                    )}`}
                   >
-                    Start Task
-                  </button>
+                    {task.status}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-4 mt-4 text-sm">
+                  <div>
+                    <strong>Project:</strong> {getProjectName(task.project)}
+                  </div>
+                  <div>
+                    <strong>Assigned To:</strong> {getUserName(task.assignedTo)}
+                  </div>
+                </div>
+                {task.resolutionNote && (
+                  <div className="mt-4 p-3 bg-gray-50 rounded">
+                    <strong className="text-sm">Resolution Note:</strong>
+                    <p className="text-sm mt-1">{task.resolutionNote}</p>
+                  </div>
                 )}
-
-                {user?.role === "user" && task.status === "in-progress" && (
-                  <button
-                    onClick={() => handleResolve(task)}
-                    className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
-                  >
-                    Mark Resolved
-                  </button>
-                )}
-
-                {(user?.role === "admin" || user?.role === "moderator") &&
-                  task.status === "resolved" && (
-                    <>
+                <div className="flex gap-2 mt-4">
+                  {user?.role === "user" &&
+                    (task.assignedTo as User)?._id === user._id &&
+                    task.status === "open" && (
                       <button
-                        onClick={() => handleVerify(task._id, true)}
+                        onClick={() =>
+                          handleStatusChange(task._id, "in-progress")
+                        }
+                        className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
+                      >
+                        Start Task (In Progress)
+                      </button>
+                    )}
+                  {user?.role === "user" &&
+                    (task.assignedTo as User)?._id === user._id &&
+                    task.status === "in-progress" && (
+                      <button
+                        onClick={() => handleResolve(task)}
                         className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
                       >
-                        Approve
+                        Resolve Ticket
+                      </button>
+                    )}
+
+                  {(user?.role === "admin" || user?.role === "moderator") &&
+                    task.status === "resolved" && (
+                      <>
+                        <button
+                          onClick={() => handleVerify(task._id, true)}
+                          className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
+                        >
+                          Approve (Verify)
+                        </button>
+                        <button
+                          onClick={() => handleVerify(task._id, false)}
+                          className="bg-yellow-600 text-white px-3 py-1 rounded hover:bg-yellow-700"
+                        >
+                          Reject
+                        </button>
+                      </>
+                    )}
+                  {(user?.role === "admin" || user?.role === "moderator") && (
+                    <>
+                      <button
+                        onClick={() => handleEdit(task)}
+                        className="bg-blue-400 text-white px-3 py-1 rounded hover:bg-blue-500"
+                      >
+                        Edit
                       </button>
                       <button
-                        onClick={() => handleVerify(task._id, false)}
-                        className="bg-yellow-600 text-white px-3 py-1 rounded hover:bg-yellow-700"
+                        onClick={() => handleDelete(task._id)}
+                        className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
                       >
-                        Reject
+                        Delete
                       </button>
                     </>
                   )}
-
-                {(user?.role === "admin" || user?.role === "moderator") && (
-                  <button
-                    onClick={() => handleDelete(task._id)}
-                    className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
-                  >
-                    Delete
-                  </button>
-                )}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
         </div>
-
         {showModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white p-8 rounded shadow-lg w-96">
@@ -368,6 +414,30 @@ export default function TasksPage() {
                     ))}
                   </select>
                 </div>
+                {editTask && (
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium mb-2">
+                      Status
+                    </label>
+                    <select
+                      value={formData.status}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          status: e.target.value as any,
+                        })
+                      }
+                      className="w-full border rounded px-3 py-2"
+                    >
+                      <option value="open">Open</option>
+                      <option value="in-progress">In Progress</option>
+                      <option value="resolved">
+                        Resolved (Needs Verification)
+                      </option>
+                      <option value="verified">Verified (Completed)</option>
+                    </select>
+                  </div>
+                )}
                 <div className="flex gap-2">
                   <button
                     type="submit"
@@ -390,7 +460,6 @@ export default function TasksPage() {
             </div>
           </div>
         )}
-
         {showResolveModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white p-8 rounded shadow-lg w-96">

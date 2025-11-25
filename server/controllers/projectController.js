@@ -10,6 +10,7 @@ exports.getAllProjects = async (req, res) => {
     } else if (req.user.role === "user") {
       query.teamMembers = req.user._id;
     }
+
     const projects = await Project.find(query)
       .populate("moderator", "name email role")
       .populate("teamMembers", "name email role")
@@ -29,6 +30,21 @@ exports.getProjectById = async (req, res) => {
 
     if (!project) {
       return res.status(404).json({ error: "Project not found" });
+    }
+
+    const hasAccess =
+      req.user.role === "admin" ||
+      (req.user.role === "moderator" &&
+        project.moderator._id.toString() === req.user._id.toString()) ||
+      (req.user.role === "user" &&
+        project.teamMembers.some(
+          (member) => member._id.toString() === req.user._id.toString()
+        ));
+
+    if (!hasAccess) {
+      return res
+        .status(403)
+        .json({ error: "You don't have access to this project" });
     }
 
     res.json(project);

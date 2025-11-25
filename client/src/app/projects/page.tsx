@@ -16,7 +16,7 @@ export default function ProjectsPage() {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    moderator: "", 
+    moderator: "",
     teamMembers: [] as string[],
     status: "active" as "active" | "completed",
   });
@@ -40,7 +40,7 @@ export default function ProjectsPage() {
 
     const data = await api.users.getAll(token);
     if (!("error" in data)) {
-      setUsers(data); 
+      setUsers(data);
     }
   };
 
@@ -57,16 +57,19 @@ export default function ProjectsPage() {
     const token = getToken();
     if (!token) return;
     const payload = {
-        ...formData,
-        moderator: user?.role === "moderator" && !editProject ? user._id : formData.moderator
-    }
+      ...formData,
+      moderator:
+        user?.role === "moderator" && !editProject
+          ? user._id
+          : formData.moderator,
+    };
 
     try {
       if (editProject) {
         const result = await api.projects.update(
           token,
           editProject._id,
-          formData 
+          formData
         );
         if ("error" in result) {
           setError(result.error);
@@ -108,8 +111,8 @@ export default function ProjectsPage() {
       ),
       status: project.status,
     });
-    if(user?.role === "admin" && users.length === 0) {
-        fetchUsers();
+    if (user?.role === "admin" && users.length === 0) {
+      fetchUsers();
     }
     setShowModal(true);
     setError(null);
@@ -182,12 +185,16 @@ export default function ProjectsPage() {
                 {getModeratorName(project.moderator)}
               </div>
               <div className="text-sm text-gray-500 mb-4">
-                <strong>Team:</strong> {project.teamMembers?.length || 0}{" "}
-                members
+                <strong>Team member:</strong>{" "}
+                {project.teamMembers && project.teamMembers.length > 0
+                  ? typeof project.teamMembers[0] === "string"
+                    ? "Unknown"
+                    : project.teamMembers[0].name
+                  : "No members"}
               </div>
-              {(user?.role === "admin" || 
-                (user?.role === "moderator" && (project.moderator as User)?._id === user._id)
-              ) && (
+              {(user?.role === "admin" ||
+                (user?.role === "moderator" &&
+                  (project.moderator as User)?._id === user._id)) && (
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleEdit(project)}
